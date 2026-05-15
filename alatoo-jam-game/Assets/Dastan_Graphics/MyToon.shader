@@ -24,9 +24,14 @@ Shader "Custom/PBR_Toon_Advanced"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
+        Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" "Queue"="Geometry" }
+        
+        // ОСНОВНОЙ ПРОХОД
         Pass
         {
+            Name "ForwardLit"
+            Tags { "LightMode"="UniversalForward" }
+
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -53,17 +58,14 @@ Shader "Custom/PBR_Toon_Advanced"
             }
 
             half4 frag (Varyings IN) : SV_Target {
-                // 1. Нормали
                 half3 normalTS = UnpackNormalScale(tex2D(_NormalMap, IN.uv), _NormalStrength);
                 float3x3 TBN = float3x3(IN.tangentWS, IN.bitangentWS, IN.normalWS);
                 float3 worldNormal = normalize(mul(normalTS, TBN));
                 
-                // 2. Освещение
                 Light light = GetMainLight();
                 float NdotL = dot(worldNormal, light.direction);
                 float toon = smoothstep(_Step - _Smoothness, _Step + _Smoothness, NdotL);
                 
-                // 3. PBR расчеты (Roughness и Metallic)
                 float3 viewDir = normalize(IN.viewDirWS);
                 float3 halfVec = normalize(light.direction + viewDir);
                 float NdotH = saturate(dot(worldNormal, halfVec));
@@ -71,23 +73,44 @@ Shader "Custom/PBR_Toon_Advanced"
                 float roughnessMap = tex2D(_SpecMap, IN.uv).r * _Roughness;
                 float metallicMap = tex2D(_MetallicMap, IN.uv).r * _Metallic;
                 
-                // Расчет силы блика на основе шероховатости
                 float specPower = _Glossiness * (1.1 - saturate(roughnessMap));
                 float spec = pow(NdotH, specPower);
                 
-                // Цвет блика: у металлов он зависит от цвета Albedo, у диэлектриков он белый
                 half4 albedo = tex2D(_MainTex, IN.uv) * _Color;
                 float3 specColor = lerp(float3(1,1,1), albedo.rgb, metallicMap);
                 float3 finalSpec = spec * specColor * toon;
 
-                // 4. Финальный цвет
                 half3 diffuse = lerp(_ShadowColor.rgb * albedo.rgb, albedo.rgb, toon);
-                
-                // Убираем диффузный цвет у металлов (они отражают, а не рассеивают)
                 diffuse *= (1.0 - metallicMap);
                 
                 return half4(diffuse + finalSpec, albedo.a);
             }
+            ENDHLSL
+        }
+
+        // ДОБАВЬ ЭТОТ PASS: Он нужен Unity 6 для записи глубины (важно для декалей)
+        Pass
+        {
+            Name "DepthOnly"
+            Tags{"LightMode" = "DepthOnly"}
+
+            ZWrite On
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma vertex DepthVert
+            #pragma fragment DepthFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct Attributes { float4 positionOS : POSITION; };
+            struct Varyings { float4 positionCS : SV_POSITION; };
+
+            Varyings DepthVert(Attributes IN) {
+                Varyings OUT;
+                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                return OUT;
+            }
+            half4 DepthFrag(Varyings IN) : SV_TARGET { return 0; }
             ENDHLSL
         }
     }
