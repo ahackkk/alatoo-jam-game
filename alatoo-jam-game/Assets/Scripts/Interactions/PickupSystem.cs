@@ -227,4 +227,16 @@ public class PickupSystem : MonoBehaviour
             return;
         }
     }
+
+    public void ForceDrop()
+    {
+        if (heldObject == null)
+            return;
+
+        heldObject.useGravity = true;
+        heldObject.linearVelocity = Vector3.zero;
+        heldObject.angularVelocity = Vector3.zero;
+
+        heldObject = null;
+    }
 }
