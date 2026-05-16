@@ -10,161 +10,133 @@ public class PickupSystem : MonoBehaviour
     public float moveSpeed = 10f;
 
     public TextMeshProUGUI itemText;
-    
-    private PCpart heldPart;
+
     private Rigidbody heldObject;
+    private PCpart heldPart;
 
     private GameObject currentObject;
+    private ItemInfo currentItem;
 
     private MeshRenderer currentRenderer;
-
     private Color originalColor;
-
 
     void Update()
     {
         CheckLookObject();
 
-        if(Input.GetMouseButtonDown(0))
-        {
+        if (Input.GetMouseButtonDown(0))
             TryPickup();
-        }
 
-        if(Input.GetMouseButtonUp(0))
-        {
+        if (Input.GetMouseButtonUp(0))
             DropObject();
-        }
 
         MoveObject();
     }
 
+    // ---------------- LOOK ----------------
 
     void CheckLookObject()
     {
-        if(heldObject != null)
+        if (heldObject != null)
         {
-            RemoveHighlight();
-
+            ClearHover();
             itemText.text = "";
-
             return;
         }
 
         Ray ray = playerCamera.ScreenPointToRay(
-            new Vector3(
-                Screen.width / 2,
-                Screen.height / 2
-            )
+            new Vector3(Screen.width / 2, Screen.height / 2)
         );
 
-        RaycastHit hit;
-
-        if(Physics.Raycast(ray, out hit, pickupRange))
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange))
         {
-            if(hit.collider.CompareTag("Pickable"))
+            ItemInfo item = hit.collider.GetComponentInParent<ItemInfo>();
+
+            if (item == null)
             {
-                if(currentObject != hit.collider.gameObject)
-                {
-                    RemoveHighlight();
-
-                    currentObject =
-                        hit.collider.gameObject;
-
-                    currentRenderer =
-                        currentObject.GetComponentInChildren<MeshRenderer>();
-
-
-                    if(currentRenderer != null)
-                    {
-                        originalColor =
-                            currentRenderer.material.color;
-
-                        currentRenderer.material.color =
-                            originalColor * 1.3f;
-                    }
-
-                    ItemInfo item =
-                        currentObject.GetComponent<ItemInfo>();
-
-                    itemText.text =
-                        item.itemName;
-                }
-
+                ClearHover();
+                itemText.text = "";
                 return;
             }
+
+            if (currentItem != item)
+            {
+                ClearHover();
+
+                currentItem = item;
+                currentObject = item.gameObject;
+
+                currentRenderer = currentObject.GetComponentInChildren<MeshRenderer>();
+
+                if (currentRenderer != null)
+                {
+                    originalColor = currentRenderer.material.color;
+                    currentRenderer.material.color = originalColor * 1.2f;
+                }
+
+                itemText.text = item.itemName;
+            }
+
+            return;
         }
 
-        RemoveHighlight();
-
+        ClearHover();
         itemText.text = "";
     }
 
-
-    void RemoveHighlight()
+    void ClearHover()
     {
-        if(currentRenderer != null)
+        if (currentRenderer != null)
         {
-            currentRenderer.material.color =
-                originalColor;
+            currentRenderer.material.color = originalColor;
         }
 
         currentRenderer = null;
         currentObject = null;
+        currentItem = null;
     }
 
+    // ---------------- PICKUP ----------------
 
     void TryPickup()
     {
-        if(heldObject != null)
+        if (heldObject != null)
             return;
 
-        Ray ray = playerCamera.ScreenPointToRay(
-            new Vector3(
-                Screen.width / 2,
-                Screen.height / 2
-            )
-        );
+        if (currentItem == null)
+            return;
 
-        RaycastHit hit;
+        Rigidbody rb = currentItem.GetComponent<Rigidbody>();
+        PCpart part = currentItem.GetComponent<PCpart>();
 
-        if(Physics.Raycast(ray, out hit, pickupRange))
+        if (rb == null)
+            return;
+
+        heldObject = rb;
+        heldPart = part;
+
+        if (heldPart != null && heldPart.currentSlot != null)
         {
-            if(hit.collider.CompareTag("Pickable"))
-            {
-                heldObject =
-                    hit.collider.GetComponent<Rigidbody>();
-
-                heldPart =
-                    hit.collider.GetComponent<PCpart>();
-
-
-                if(heldPart.currentSlot != null)
-                {
-                    heldPart.currentSlot.currentPart = null;
-                    heldPart.currentSlot = null;
-}
-
-                heldObject.useGravity = false;
-
-                heldObject.linearDamping = 10f;
-            }
+            heldPart.currentSlot.currentPart = null;
+            heldPart.currentSlot = null;
         }
+
+        heldObject.useGravity = false;
+        heldObject.linearDamping = 10f;
     }
 
+    // ---------------- MOVE ----------------
 
     void MoveObject()
     {
-        if(heldObject == null)
+        if (heldObject == null)
             return;
 
-        Vector3 direction =
-            holdPoint.position -
-            heldObject.position;
-
-        heldObject.linearVelocity =
-            direction * moveSpeed;
+        Vector3 dir = holdPoint.position - heldObject.position;
+        heldObject.linearVelocity = dir * moveSpeed;
     }
 
+    // ---------------- DROP ----------------
 
     void DropObject()
     {
@@ -174,59 +146,50 @@ public class PickupSystem : MonoBehaviour
         TrySnapToSlot();
 
         heldObject.useGravity = true;
-
         heldObject.linearDamping = 5f;
 
         heldObject = null;
         heldPart = null;
     }
 
+    // ---------------- SNAP ----------------
+
     void TrySnapToSlot()
     {
-        Collider[] nearbyColliders =
-            Physics.OverlapSphere(
-                heldObject.position,
-                1.5f
-            );
+        if (heldObject == null || heldPart == null)
+            return;
 
-        foreach(Collider col in nearbyColliders)
+        Collider[] nearby = Physics.OverlapSphere(heldObject.position, 1.5f);
+
+        foreach (Collider col in nearby)
         {
-            PartSlot slot =
-                col.GetComponent<PartSlot>();
+            PartSlot slot = col.GetComponent<PartSlot>();
 
-            if(slot == null)
+            if (slot == null)
                 continue;
 
-            if(slot.currentPart != null)
+            if (slot.currentPart != null)
                 continue;
 
-            if(slot.acceptedType != heldPart.partType)
+            if (slot.acceptedType != heldPart.partType)
                 continue;
 
+            heldObject.position = slot.snapPoint.position;
+            heldObject.rotation = slot.snapPoint.rotation;
 
-            heldObject.position =
-                slot.snapPoint.position;
-
-            heldObject.rotation =
-                slot.snapPoint.rotation;
-
-
-            heldObject.linearVelocity =
-                Vector3.zero;
-
-            heldObject.angularVelocity =
-                Vector3.zero;
+            heldObject.linearVelocity = Vector3.zero;
+            heldObject.angularVelocity = Vector3.zero;
 
             heldObject.useGravity = false;
 
-
             slot.currentPart = heldPart;
-
             heldPart.currentSlot = slot;
 
             return;
         }
     }
+
+    // ---------------- FORCE DROP ----------------
 
     public void ForceDrop()
     {
@@ -238,5 +201,6 @@ public class PickupSystem : MonoBehaviour
         heldObject.angularVelocity = Vector3.zero;
 
         heldObject = null;
+        heldPart = null;
     }
 }

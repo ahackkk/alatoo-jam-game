@@ -6,14 +6,15 @@ public class BuildModeManager : MonoBehaviour
     public Camera playerCamera;
     public Transform buildCameraPoint;
 
+    public BuildDragSystem buildDragSystem;
+    public PickupSystem pickupSystem;
+
     public MonoBehaviour fpsController;
     public MonoBehaviour fpsLook;
     public CharacterController characterController;
 
     public TableZone tableZone;
     public GameObject hintText;
-
-    public PickupSystem pickupSystem;
 
     [Header("Settings")]
     public float enterCooldown = 1f;
@@ -46,10 +47,14 @@ public class BuildModeManager : MonoBehaviour
                     return;
 
                 EnterBuildMode();
+                pickupSystem.enabled = false;
+                buildDragSystem.enabled = true;
             }
             else
             {
                 ExitBuildMode();
+                pickupSystem.enabled = true;
+                buildDragSystem.enabled = false;
             }
 
             lastPressTime = Time.time;
