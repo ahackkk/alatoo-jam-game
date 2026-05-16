@@ -14,8 +14,8 @@ public class PickupSystem : MonoBehaviour
     private Rigidbody heldObject;
     private PCpart heldPart;
 
-    private GameObject currentObject;
     private ItemInfo currentItem;
+    private GameObject currentObject;
 
     private MeshRenderer currentRenderer;
     private Color originalColor;
@@ -115,14 +115,17 @@ public class PickupSystem : MonoBehaviour
         heldObject = rb;
         heldPart = part;
 
+        // 🔥 если предмет был в слоте — снимаем его
         if (heldPart != null && heldPart.currentSlot != null)
         {
+            heldPart.currentSlot.RemovePart(heldObject);
+
             heldPart.currentSlot.currentPart = null;
             heldPart.currentSlot = null;
         }
 
         heldObject.useGravity = false;
-        heldObject.linearDamping = 10f;
+        heldObject.isKinematic = false;
     }
 
     // ---------------- MOVE ----------------
@@ -146,7 +149,6 @@ public class PickupSystem : MonoBehaviour
         TrySnapToSlot();
 
         heldObject.useGravity = true;
-        heldObject.linearDamping = 5f;
 
         heldObject = null;
         heldPart = null;
@@ -174,16 +176,7 @@ public class PickupSystem : MonoBehaviour
             if (slot.acceptedType != heldPart.partType)
                 continue;
 
-            heldObject.position = slot.snapPoint.position;
-            heldObject.rotation = slot.snapPoint.rotation;
-
-            heldObject.linearVelocity = Vector3.zero;
-            heldObject.angularVelocity = Vector3.zero;
-
-            heldObject.useGravity = false;
-
-            slot.currentPart = heldPart;
-            heldPart.currentSlot = slot;
+            slot.PlacePart(heldPart, heldObject);
 
             return;
         }
@@ -197,9 +190,6 @@ public class PickupSystem : MonoBehaviour
             return;
 
         heldObject.useGravity = true;
-        heldObject.linearVelocity = Vector3.zero;
-        heldObject.angularVelocity = Vector3.zero;
-
         heldObject = null;
         heldPart = null;
     }

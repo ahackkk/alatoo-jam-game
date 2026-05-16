@@ -51,10 +51,17 @@ public class BuildDragSystem : MonoBehaviour
             return;
 
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        Vector3 target = ray.GetPoint(dragHeight);
 
-        Vector3 dir = target - selectedRb.position;
-        selectedRb.linearVelocity = dir * moveSpeed;
+        Plane plane = new Plane(Vector3.up, Vector3.up * dragHeight);
+
+        if (plane.Raycast(ray, out float enter))
+        {
+            Vector3 hitPoint = ray.GetPoint(enter);
+
+            Vector3 dir = hitPoint - selectedRb.position;
+
+            selectedRb.linearVelocity = dir * moveSpeed;
+        }
     }
 
     void Release()

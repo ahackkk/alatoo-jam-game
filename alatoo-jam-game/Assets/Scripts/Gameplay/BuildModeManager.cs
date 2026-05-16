@@ -16,6 +16,8 @@ public class BuildModeManager : MonoBehaviour
     public TableZone tableZone;
     public GameObject hintText;
 
+    public GameObject[] objectsToActivate;
+
     [Header("Settings")]
     public float enterCooldown = 1f;
 
@@ -49,6 +51,7 @@ public class BuildModeManager : MonoBehaviour
                 EnterBuildMode();
                 pickupSystem.enabled = false;
                 buildDragSystem.enabled = true;
+                ActivateObjects();
             }
             else
             {
@@ -146,5 +149,17 @@ public class BuildModeManager : MonoBehaviour
             return;
 
         hintText.SetActive(tableZone != null && tableZone.playerInside);
+    }
+
+    void ActivateObjects()
+    {
+        if (objectsToActivate == null)
+            return;
+
+        foreach (GameObject obj in objectsToActivate)
+        {
+            if (obj != null)
+                obj.SetActive(true);
+        }
     }
 }
