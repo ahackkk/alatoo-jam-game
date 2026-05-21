@@ -28,6 +28,10 @@ public class Dialogue : MonoBehaviour
     public GameObject[] activateOnChoice2;
     public GameObject[] deactivateOnChoice2;
 
+    [Header("Money")]
+    public int moneyChoice1 = 0;
+    public int moneyChoice2 = 0;
+
     [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip typingClip;
@@ -180,6 +184,7 @@ public class Dialogue : MonoBehaviour
             if (obj) obj.SetActive(false);
 
         ContinueAfterChoice();
+        MoneySystem.instance.AddMoney(moneyChoice1);
     }
 
     // ---------------- CHOICE 2 ----------------
@@ -195,6 +200,7 @@ public class Dialogue : MonoBehaviour
             if (obj) obj.SetActive(false);
 
         ContinueAfterChoice();
+        MoneySystem.instance.AddMoney(moneyChoice2);
     }
 
     // ---------------- AFTER CHOICE ----------------
