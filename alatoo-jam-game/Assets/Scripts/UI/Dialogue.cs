@@ -40,7 +40,9 @@ public class Dialogue : MonoBehaviour
 
     private int index;
     private Coroutine typingCoroutine;
+
     private bool waitingChoice = false;
+    private bool inDialogue = false;
 
     void Start()
     {
@@ -50,13 +52,13 @@ public class Dialogue : MonoBehaviour
 
     void Update()
     {
-        // 🔥 ФИКС КАМЕРЫ НА ОБЪЕКТ
-        if (lookTarget != null && movementScript != null && movementScript.enabled == false)
+        // 🔥 фиксация камеры ТОЛЬКО во время диалога
+        if (inDialogue && lookTarget != null)
         {
             playerCamera.LookAt(lookTarget);
         }
 
-        // 🔥 ВЫБОР
+        // 🔥 выбор
         if (waitingChoice)
         {
             if (Keyboard.current.digit1Key.wasPressedThisFrame)
@@ -68,7 +70,7 @@ public class Dialogue : MonoBehaviour
             return;
         }
 
-        // 🔥 ПРОПУСК ДИАЛОГА
+        // 🔥 управление диалогом
         if (Mouse.current.leftButton.wasPressedThisFrame)
         {
             if (textComponent.text == lines[index])
@@ -87,6 +89,8 @@ public class Dialogue : MonoBehaviour
 
     void StartDialogue()
     {
+        inDialogue = true;
+
         if (movementScript != null)
             movementScript.enabled = false;
 
@@ -155,9 +159,7 @@ public class Dialogue : MonoBehaviour
             typingCoroutine = StartCoroutine(TypeLine());
 
             if (index == choiceIndex)
-            {
                 waitingChoice = true;
-            }
         }
         else
         {
@@ -169,33 +171,44 @@ public class Dialogue : MonoBehaviour
 
     void ApplyChoice1()
     {
+        waitingChoice = false;
+
         foreach (var obj in activateOnChoice1)
             if (obj) obj.SetActive(true);
 
         foreach (var obj in deactivateOnChoice1)
             if (obj) obj.SetActive(false);
 
-        waitingChoice = false;
-
-        index++;
-
-        typingCoroutine = StartCoroutine(TypeLine());
+        ContinueAfterChoice();
     }
 
     // ---------------- CHOICE 2 ----------------
 
     void ApplyChoice2()
     {
+        waitingChoice = false;
+
         foreach (var obj in activateOnChoice2)
             if (obj) obj.SetActive(true);
 
         foreach (var obj in deactivateOnChoice2)
             if (obj) obj.SetActive(false);
 
-        waitingChoice = false;
+        ContinueAfterChoice();
+    }
+
+    // ---------------- AFTER CHOICE ----------------
+
+    void ContinueAfterChoice()
+    {
+        // если дальше нет строк — завершаем
+        if (index + 1 >= lines.Length)
+        {
+            EndDialogue();
+            return;
+        }
 
         index++;
-
         typingCoroutine = StartCoroutine(TypeLine());
     }
 
@@ -203,6 +216,9 @@ public class Dialogue : MonoBehaviour
 
     void EndDialogue()
     {
+        inDialogue = false;
+        waitingChoice = false;
+
         if (movementScript != null)
             movementScript.enabled = true;
 
